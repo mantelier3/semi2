@@ -57,13 +57,19 @@ getReward <- function(state, action, hitObjects)
 	# action 3 - steer right
 	# action 4 - speed up
 	# action 5 - speed down
-
-	reward <- 1
-
+    if (action == 4) reward <- 0.5 else reward <- 0.2
+    if(state["front"] == 2 && (action==2 || action==3)) reward <- 1 else reward <- 0
+    
 	reward	
 }
 
-
-initConsts(numlanes=3, numcars=5)
-qmat <- qlearning(c(2, 2, 2))
-simulation(qmat)
+while (dev.cur() < 3){
+    dev.new()
+}
+initConsts(numlanes=6, numcars=5)
+STARTFUEL = 2000
+# MINCARSPEED = 5
+for (i in 1:10){
+    qmat <- qlearning(c(2, 2, 2), maxtrials = i)
+    simulation(qmat)
+}
