@@ -16,7 +16,7 @@ getStateDesc <- function(sceneObjects)
 	sel <- which(sceneObjects$type == "car")
 	for (i in sel)
 	{
-		if (isOverlapped(sceneObjects[1, "xtopleft"], 
+		if (isOverlapped(    sceneObjects[1, "xtopleft"], 
                              sceneObjects[1, "ytopleft"] + CARLENGTH,
                              sceneObjects[1, "xbottomright"],
                              sceneObjects[1, "ytopleft"],
@@ -26,7 +26,7 @@ getStateDesc <- function(sceneObjects)
                              sceneObjects[i, "ybottomright"]))
 			state["front"] <- 2
 
-		if (isOverlapped(sceneObjects[1, "xtopleft"] - CARWIDTH, 
+		if (isOverlapped(    sceneObjects[1, "xtopleft"] - CARWIDTH, 
                              sceneObjects[1, "ytopleft"],
                              sceneObjects[1, "xtopleft"],
                              sceneObjects[1, "ybottomright"],
@@ -36,7 +36,7 @@ getStateDesc <- function(sceneObjects)
                              sceneObjects[i, "ybottomright"]))
 			state["left"] <- 2
 
-		if (isOverlapped(sceneObjects[1, "xbottomright"], 
+		if (isOverlapped(    sceneObjects[1, "xbottomright"], 
                              sceneObjects[1, "ytopleft"],
                              sceneObjects[1, "xbottomright"] + CARWIDTH,
                              sceneObjects[1, "ybottomright"],
@@ -66,6 +66,10 @@ getReward <- function(state, action, hitObjects)
 while (dev.cur() < 3){
     dev.new()
 }
+
+
+
+
 initConsts(numlanes=6, numcars=5)
 STARTFUEL = 2000
 # MINCARSPEED = 5
