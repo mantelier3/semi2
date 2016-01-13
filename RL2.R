@@ -50,7 +50,7 @@ lanePos <- function(so)
 
 overlapping <- function(so)
 {
-    state <- rep(1, 3)
+    state <- c(left=1, right=1, front=1)
     sel   <- which( so$type == "car"
                   | so$type == "leftside"
                   | so$type == "rightside")
@@ -95,7 +95,7 @@ getStateDesc <- function(so)
     # State description.
     state <- rep(1, NUMLANES + 6)
     names(state) <- c(paste0("laneScore", 1:NUMLANES),
-                      "carSpeed", "carPosL", "carPosR",
+                      "myCarSpeed", "myCarPosL", "myCarPosR",
                       "left", "right", "front")
 
     # Enhance so table.
@@ -124,21 +124,72 @@ getStateDesc <- function(so)
     state[1:NUMLANES] <- lanes
 
     # Check overlapping sides.
-    state[c("left", "right", "front")] <- overlapping(so)
+    overlaps       <- overlapping(so)
+    state["left"]  <- overlaps["left"]
+    state["right"] <- overlaps["right"]
+    state["front"] <- overlaps["front"]
 
-    state["carSpeed"] <- so[1, "speed"]
-    state["carPosL"]  <- so[1, "lcoord"]
-    state["carPosR"]  <- so[1, "rcoord"]
+    # Speed and coords.
+    state["myCarSpeed"] <- so[1, "speed"]
+    state["myCarPosL"]  <- so[1, "lcoord"]
+    state["myCarPosR"]  <- so[1, "rcoord"]
 
     state
 }
 
+WEIGHTS <- c(sides = 10,
+             front = 5,
+             lanes = 1,
+             speed = 1)
+
 getReward <- function(state, action, hitObjects)
 {
-    # action 1 - nothing
-    # action 2 - steer left
-    # action 3 - steer right
-    # action 4 - speed up
-    # action 5 - speed down
+    # Action 1 - nothing
+    # Action 2 - steer left
+    # Action 3 - steer right
+    # Action 4 - speed up
+    # Action 5 - speed down
 
+    # Allow punishment.
+    baseline <- sum(WEIGHTS * c(1, 1, 0, MAXCARSPEED %/% 2))
+
+    rewards <- c(sides = 0,
+                 front = 0,
+                 lanes = 0,
+                 speed = 0)
+
+
+    # Don't steer into stuff.
+    if (state["left"] == 2  && action == 2 ||
+        state["right"] == 2 && action == 3){
+        rewards["sides"] <- -1
+    }
+
+    # Brake if you're about to get hit.
+    if (state["front"] == 2 && action != 5) {
+        rewards["front"] <- -1
+    }
+
+    # Follow the best path.
+    rewards["lanes"] <- state[1:NUMLANES][state["myCarPosL"]]
+                      + state[1:NUMLANES][state["myCarPosR"]]
+
+    # Be fast.
+    rewards["speed"] <- state["myCarSpeed"] - (MAXCARSPEED %/% 2)
+
+    sum(rewards * WEIGHTS) + baseline
+}
+
+# Fix devices.
+while (dev.cur() < 3){
+    dev.new()
+}
+
+initConsts(numlanes=3, numcars=5)
+STARTFUEL = 2000
+# MINCARSPEED = 5
+for (i in 10){
+    qmat <- qlearning(c(rep(NUMLANES+1, NUMLANES),
+                      NUMLANES, NUMLANES, 5, 2, 2, 2), maxtrials = i)
+    simulation(qmat)
 }
