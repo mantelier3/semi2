@@ -66,6 +66,8 @@ getStateDesc <- function(so)
                right = 1, # 1 → free, 2 → taken
                speed = 1) # 1:MAXCARSPEED
 
+    .so <<- so
+
     # Add y coordinates to sides, for collision detection.
     so[so$type=="leftside", "ytopleft"]      <- so[1, "ytopleft"]
     so[so$type=="rightside", "ytopleft"]     <- so[1, "ytopleft"]
@@ -83,9 +85,19 @@ getStateDesc <- function(so)
     cars <- rbind(cars, data.frame(ybottomright = rep(Inf, NUMLANES),
                                    lcoord       = 1:NUMLANES))
 
+    fuels <- so[so$type=="fuel", c("ybottomright", "lcoord")]
+    fuels <- rbind(fuels, data.frame(ybottomright = rep(Inf, NUMLANES),
+                                     lcoord       = 1:NUMLANES))
+
+    c.lanes <- aggregate(ybottomright ~ lcoord, cars, min)$ybottomright
+    f.lanes <- aggregate(ybottomright ~ lcoord, fuels, min)$ybottomright
+
+    lanes <- order(c.lanes, decreasing = T)
+    lanes[c.lanes > f.lanes] = NUMLANES + 1
+
     lane.dists <- aggregate(ybottomright ~ lcoord, cars, min)$ybottomright
     # Make offroad lanes the worst.
-    lane.dists <- c(-Inf, lane.dists, -Inf)
+    lane.dists <- c(-Inf, lanes, -Inf)
 
     mycar   <- so[1, ]
     mycar.l <- mycar$lcoord + 1
@@ -107,8 +119,6 @@ getStateDesc <- function(so)
     state["right"] <- overlaps["right"]
     state["front"] <- overlaps["front"]
 
-    .so <<- so
-
     state
 }
 
@@ -126,7 +136,7 @@ getReward <- function(state, action, hitObjects)
     # Action 5 - speed down
 
     rewards <- c(sides = 1,
-                 front = 1,
+                 front = 0,
                  steer = 0,
                  speed = 0)
 
@@ -137,8 +147,11 @@ getReward <- function(state, action, hitObjects)
     }
 
     # Brake if you're about to get hit.
-    if (state["front"] == 2 && action != 5) {
-        rewards["front"] <- -1
+    if (state["front"] == 2 && action == 5) {
+        rewards["front"] <- 1
+    }
+    if (state["front"] == 2 && (action == 2 || action == 3)) {
+        rewards["front"] <- .5
     }
 
     # Steer towards the better lane.
@@ -167,7 +180,7 @@ while (dev.cur() < 3){
 initConsts(numlanes=3, numcars=5)
 STARTFUEL = 2000
 # MINCARSPEED = 5
-for (i in 20){
+for (i in 10){
     qmat <- qlearning(c(3, 2, 2, 2, MAXCARSPEED), maxtrials = i)
     simulation(qmat)
 }
