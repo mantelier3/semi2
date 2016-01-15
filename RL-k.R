@@ -111,7 +111,7 @@ getStateDesc <- function(so)
     so[so$type=="leftside", "ybottomright"]  <- so[1, "ybottomright"]
     so[so$type=="rightside", "ybottomright"] <- so[1, "ybottomright"]
     
-    state <- c(1,1,1,1)
+    state <- c(1,1,1,1,1)
     
 
     names(state) <- c(   "leftright"
@@ -130,8 +130,18 @@ getStateDesc <- function(so)
     sel    <- which(so.car$type == "car")
     
 
-    
+#     count <<- count + 1
+#     if ((dontskip || count %% 100 == 0) && any(so$type == "car") && any(so$type == "fuel") && nrow(so[so$type=="fuel",]) > 1){
+#         sop <<- so 
+#         print(so)
+#         browser()
+#     }
 
+    so.fuel <- so[so$type == "fuel",]
+    so.fuel <- so.fuel[so.fuel$ytopleft > -10,]
+    so.fuel <- so.fuel[order(so.fuel[,"lane"],so.fuel[,"ybottomright"]),]
+    so.fuel <- so.fuel[!duplicated(so.fuel$lane),]
+    so.fuel <- so.fuel[order(so.fuel[,"ybottomright"]),]
     
     so.car.fuel <- so[so$type == "car" | so$type == "fuel",]
     so.car.fuel <- so.car.fuel[so.car.fuel$ytopleft > -20,]
@@ -147,7 +157,10 @@ getStateDesc <- function(so)
     lanes[is.infinite(lanes)] <- NUMLANES+1 # empty lane
 
     optimal_lane <- which.max(lanes)
-    
+    if (nrow(so.fuel) > 0){
+        optimal_lane <- so.fuel[1,"lane"]
+    }    
+
     sel <- which( so$type == "car"
                   | so$type == "leftside" 
                   | so$type == "rightside")
@@ -205,20 +218,18 @@ getStateDesc <- function(so)
     if(state["optimal_lane_dir"] != 2 && !is_change_safe)
         state["optimal_lane_dir"] <- 4
         
-    state["maxspeed"] <- 2
-    if(state["front"] == 1)
+#     state["maxspeed"] <- 2
+#     if(state["front"] == 1)
         state["maxspeed"] <- 1
+    if (optimal_lane == so[1,"lane"] && state["front"] == 2){
+        state["optimal_lane_dir"] <- 5
+    }
         
     #print(state)
     #print(length(state))
     # print(so)
     
-#     count <<- count + 1
-#     if ((dontskip || count %% 100 == 0) && any(so$type == "car") && any(so$type == "fuel") && nrow(so[so$type=="fuel",]) > 1){
-#         sop <<- so 
-#         print(so)
-#         browser()
-#     }
+
     
     state <- state[c("optimal_lane_dir")]
 #     sot <<- so
@@ -253,6 +264,8 @@ getReward <- function(state, action, hitObjects)
     else if (state["optimal_lane_dir"] == 3 && action == 3)
         reward <- 1
     else if (state["optimal_lane_dir"] == 4 && action == 5)
+        reward <- 1
+    else if (state["optimal_lane_dir"] == 5 && action == 5)
         reward <- 1
     else
         reward <- 0
