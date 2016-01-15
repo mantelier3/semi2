@@ -35,6 +35,74 @@ collisionCourse <- function(so, i)
         0
 }
 
+
+is_lane_change_safe <- function(so, target_lane) {
+    safe <- 1
+    sel <- which(so$type == "car")
+    for (i in sel){
+        if(so[1,"lane"] > target_lane){
+            if (isOverlapped(so[1, "xtopleft"] - 3,
+                             so[1, "ytopleft"] + 0.5*CARLENGTH,
+                             so[1, "xbottomright"],
+                             so[1, "ytopleft"],
+                             so[i, "xtopleft"],
+                             so[i, "ytopleft"],
+                             so[i, "xbottomright"],
+                             so[i, "ybottomright"]))
+                safe <- 0
+            if (isOverlapped(so[1, "xtopleft"] - 3 - LANEWIDTH,
+                             so[1, "ytopleft"] + CARLENGTH,
+                             so[1, "xtopleft"] - 3,
+                             so[1, "ybottomright"] - CARLENGTH,
+                             so[i, "xtopleft"],
+                             so[i, "ytopleft"],
+                             so[i, "xbottomright"],
+                             so[i, "ybottomright"]))
+                safe <- 0
+#             if (isOverlapped(so[1, "xtopleft"] - 3 - 2*LANEWIDTH,
+#                              so[1, "ytopleft"] + 1.5*CARLENGTH,
+#                              so[1, "xbottomright"] - 3 - LANEWIDTH,
+#                              so[1, "ybottomright"],
+#                              so[i, "xtopleft"],
+#                              so[i, "ytopleft"],
+#                              so[i, "xbottomright"],
+#                              so[i, "ybottomright"]))
+#                 safe <- 0
+        }
+        else {
+            if (isOverlapped(so[1, "xtopleft"] - 3,
+                             so[1, "ytopleft"] + 0.5*CARLENGTH,
+                             so[1, "xbottomright"],
+                             so[1, "ytopleft"],
+                             so[i, "xtopleft"],
+                             so[i, "ytopleft"],
+                             so[i, "xbottomright"],
+                             so[i, "ybottomright"]))
+                safe <- 0
+            if (isOverlapped(so[1, "xtopleft"] - 3 + LANEWIDTH,
+                             so[1, "ytopleft"] + CARLENGTH,
+                             so[1, "xtopleft"] - 3 + 2*LANEWIDTH,
+                             so[1, "ybottomright"] - CARLENGTH,
+                             so[i, "xtopleft"],
+                             so[i, "ytopleft"],
+                             so[i, "xbottomright"],
+                             so[i, "ybottomright"]))
+                safe <- 0
+#             if (isOverlapped(so[1, "xtopleft"] - 3 + 2*LANEWIDTH,
+#                              so[1, "ytopleft"] + 1.5*CARLENGTH,
+#                              so[1, "xbottomright"] - 3 + 3*LANEWIDTH,
+#                              so[1, "ybottomright"],
+#                              so[i, "xtopleft"],
+#                              so[i, "ytopleft"],
+#                              so[i, "xbottomright"],
+#                              so[i, "ybottomright"]))
+#                 safe <- 0
+        }
+    }
+    safe
+}
+
+
 getStateDesc <- function(so)
 {
     #so <<- so
@@ -119,7 +187,9 @@ getStateDesc <- function(so)
     }
     
     
-    
+    is_change_safe <-is_lane_change_safe(so[so$type == "car" | 
+                                            so$type == "mycar",], optimal_lane)
+
     carpos_orig <- lanePos(so, 1)
     if (length(carpos_orig) > 1)
         carpos <- sum(carpos_orig)/2
@@ -132,6 +202,8 @@ getStateDesc <- function(so)
         state["optimal_lane_dir"] <- 2
     else 
         state["optimal_lane_dir"] <- 3
+    if(state["optimal_lane_dir"] != 2 && !is_change_safe)
+        state["optimal_lane_dir"] <- 4
         
     state["maxspeed"] <- 2
     if(state["front"] == 1)
@@ -149,13 +221,13 @@ getStateDesc <- function(so)
 #     }
     
     state <- state[c("optimal_lane_dir")]
-    sot <<- so
-    print(so)
-    printf("indexes %s",paste(lane_indexes,collapse=" "))
-    printf("order %s",paste(lane_order,collapse=" "))
-    printf("lanes %s",paste(lanes,collapse=" "))
-    printf("optimal lane %s",paste(optimal_lane,collapse=" "))
-    printf("state %s",paste(state,collapse=" "))
+#     sot <<- so
+#     print(so)
+#     printf("indexes %s",paste(lane_indexes,collapse=" "))
+#     printf("order %s",paste(lane_order,collapse=" "))
+#     printf("lanes %s",paste(lanes,collapse=" "))
+#     printf("optimal lane %s",paste(optimal_lane,collapse=" "))
+#     printf("state %s",paste(state,collapse=" "))
     state
     
 }
@@ -172,42 +244,29 @@ getReward <- function(state, action, hitObjects)
     # action 5 - speed down
     # rewards <- c(lr=0, front=0, lanes=0, hit=0, speed=0, off=0)
     
-    reward <- 100
-#     if(state["left"] == 2 && action == 2)
-#         reward <- 0
-#     if (state["right"] == 2 && action == 3)
-#         reward <- 0
-#     if (state["front"] && ( action != 5 || action != 2 || action != 3))
-#         reward <- 0
-#     if(state["left"] == 2)
-#         reward <- reward*0.8
-#     if (state["right"] == 2)
-#         reward <- reward*0.8
-#     if (state["leftright"] == 2 && ( action == 2 || action == 3))
-#         reward <- 0
-#     if (state["leftright"] == 2)
-#         reward <- reward/2
-    if (state["optimal_lane_dir"] == 2)
-        reward <- reward + 1000
-    else if (state["optimal_lane_dir"] == 1 && action != 2)
-        reward <- reward/10
-    else if (state["optimal_lane_dir"] == 2 && action != 3)
-        reward <- reward/10
-#     if (state["maxspeed"] == 2)
-#         reward <- reward*5
-#     if (state["maxspeed"] == 1 && action != 4)
-#         reward <- reward/2
+    # reward <- 100
 
-    if(length(hitObjects) > 0){
-        if(length(hitObjects) > 2)
-            print("woooooooooooooooooooooooooooooooooooooooooooooooooo")
-        print(hitObjects)
-        print("fooooooooooooooooooooooooooo")
-        if(hitObjects == "fuel")
-            reward <- 10000000
-        else
-            reward <- 0
-    }        
+    if (state["optimal_lane_dir"] == 2 && action == 4)
+        reward <- 1
+    else if (state["optimal_lane_dir"] == 1 && action == 2)
+        reward <- 1
+    else if (state["optimal_lane_dir"] == 3 && action == 3)
+        reward <- 1
+    else if (state["optimal_lane_dir"] == 4 && action == 5)
+        reward <- 1
+    else
+        reward <- 0
+
+#     if(length(hitObjects) > 0){
+#         if(length(hitObjects) > 2)
+#             print("woooooooooooooooooooooooooooooooooooooooooooooooooo")
+#         print(hitObjects)
+#         print("fooooooooooooooooooooooooooo")
+#         if(hitObjects == "fuel")
+#             reward <- 10000000
+#         else
+#             reward <- 0
+#     }        
     
     
 #     
