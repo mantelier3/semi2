@@ -4,7 +4,7 @@ printf <- function(...) invisible(print(sprintf(...)))
 while (dev.cur() < 3){
     dev.new()
 }
-a <- array(c(0,0,0,1,0,0,0,0,1,0,1,0,0,0,0),dim=c(3,5))
+a <- array(c(0,0,0,0,1,0,0,0,0,0,1,0,0,1,0,0,0,0,0,1),dim=c(4,5))
 initConsts(numlanes=3, numcars=5)
 STARTFUEL = 5000
 # MINCARSPEED = 5
@@ -20,7 +20,7 @@ for (i in 22){
     # is something crashable in front, 1=no, 2=yes
     # where is the optimal lane - 1=to the left, 2=you're on it, 3=to the right
     # is my speed max possible for situation - 1=no, 2=yes
-    qmat <- qlearning(c(3), maxtrials = i)
+    qmat <- qlearning(c(4), maxtrials = i)
     printState <<- T
     simulation(qmat)
 }
