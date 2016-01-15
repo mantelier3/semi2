@@ -1,4 +1,3 @@
-rm(list=ls())
 source("simulation.R")
 
 # return distance of object in collision course
@@ -44,14 +43,13 @@ getStateDesc <- function(so)
     so[so$type=="leftside", "ybottomright"]  <- so[1, "ybottomright"]
     so[so$type=="rightside", "ybottomright"] <- so[1, "ybottomright"]
     
-    state <- c(1,1,1,1,1)
+    state <- c(1,1,1,1)
     
 
-    names(state) <- c(   "left"
-                       , "right"
-                       , "front"
-                       , "optimal_lane_dir"
-                       , "maxspeed")
+    names(state) <- c(   "leftright"
+                         , "front"
+                         , "optimal_lane_dir"
+                         , "maxspeed")
     
     so$lane <- rep(0, nrow(so))
     
@@ -63,23 +61,22 @@ getStateDesc <- function(so)
     so.car <- so[order(so$ybottomright), ]
     sel    <- which(so.car$type == "car")
     
-#     if (any(so$type == "car") && any(so$type == "fuel")){
-#         sop <<- so 
-#         print(so)
-#         browser()
-#     }
+
     
 
     
     so.car.fuel <- so[so$type == "car" | so$type == "fuel",]
+    so.car.fuel <- so.car.fuel[so.car.fuel$ytopleft > -20,]
     so.car.fuel.sorted <- so.car.fuel[order(so.car.fuel[,"lane"],so.car.fuel[,"ybottomright"]),]
     so.car.fuel.sorted <- so.car.fuel.sorted[!duplicated(so.car.fuel.sorted$lane),]
     so.car.fuel.sorted <- so.car.fuel.sorted[order(so.car.fuel.sorted[,"ybottomright"]),]
-    lane_indexes <- so.car.fuel.sorted$lane
     lane_order <- order(so.car.fuel.sorted$lane)
-    lane_order[which(so.car.fuel.sorted$type=="fuel")] <- NUMLANES + 2
+    so.car.fuel.sorted <- so.car.fuel.sorted[order(so.car.fuel.sorted$lane),]
+    lane_indexes <- so.car.fuel.sorted$lane
+    lane_order[which(so.car.fuel.sorted$type=="fuel")] <- NUMLANES + 1 # not priority fuel
+    lane_order[which(so.car.fuel.sorted$type=="fuel")[1]] <- NUMLANES + 2 # priority fuel
     lanes[lane_indexes] <- lane_order
-    lanes[is.infinite(lanes)] <- NUMLANES+1
+    lanes[is.infinite(lanes)] <- NUMLANES+1 # empty lane
 
     optimal_lane <- which.max(lanes)
     
@@ -90,9 +87,9 @@ getStateDesc <- function(so)
     
     for (i in sel)
     {
-        if (isOverlapped( so[1, "xtopleft"], 
-                          so[1, "ytopleft"] + CARLENGTH,
-                          so[1, "xbottomright"],
+        if (isOverlapped( so[1, "xtopleft"]-1, 
+                          so[1, "ytopleft"] + 2*CARLENGTH,
+                          so[1, "xbottomright"]+1,
                           so[1, "ytopleft"],
                           so[i, "xtopleft"], 
                           so[i, "ytopleft"],
@@ -100,7 +97,7 @@ getStateDesc <- function(so)
                           so[i, "ybottomright"]))
             state["front"] <- 2
         
-        if (isOverlapped( so[1, "xtopleft"] - 4, 
+        if (isOverlapped( so[1, "xtopleft"] - 5, 
                           so[1, "ytopleft"],
                           so[1, "xtopleft"],
                           so[1, "ybottomright"],
@@ -108,25 +105,28 @@ getStateDesc <- function(so)
                           so[i, "ytopleft"],
                           so[i, "xbottomright"],
                           so[i, "ybottomright"]))
-            state["left"] <- 2
+            state["leftright"] <- 2
         
         if (isOverlapped( so[1, "xbottomright"], 
                           so[1, "ytopleft"],
-                          so[1, "xbottomright"] + 4,
+                          so[1, "xbottomright"] + 5,
                           so[1, "ybottomright"],
                           so[i, "xtopleft"], 
                           so[i, "ytopleft"],
                           so[i, "xbottomright"],
                           so[i, "ybottomright"]))
-            state["right"] <- 2
+            state["leftright"] <- 2
     }
     
     
     
-    carpos <- lanePos(so, 1)
-    if (length(carpos) > 1)
-        carpos <- sum(carpos)/2
-    if(carpos < optimal_lane)
+    carpos_orig <- lanePos(so, 1)
+    if (length(carpos_orig) > 1)
+        carpos <- sum(carpos_orig)/2
+    else
+        carpos <- carpos_orig
+    # browser()
+    if(carpos > optimal_lane)
         state["optimal_lane_dir"] <- 1
     else if (carpos == optimal_lane)
         state["optimal_lane_dir"] <- 2
@@ -140,6 +140,22 @@ getStateDesc <- function(so)
     #print(state)
     #print(length(state))
     # print(so)
+    
+#     count <<- count + 1
+#     if ((dontskip || count %% 100 == 0) && any(so$type == "car") && any(so$type == "fuel") && nrow(so[so$type=="fuel",]) > 1){
+#         sop <<- so 
+#         print(so)
+#         browser()
+#     }
+    
+    state <- state[c("optimal_lane_dir")]
+    sot <<- so
+    print(so)
+    printf("indexes %s",paste(lane_indexes,collapse=" "))
+    printf("order %s",paste(lane_order,collapse=" "))
+    printf("lanes %s",paste(lanes,collapse=" "))
+    printf("optimal lane %s",paste(optimal_lane,collapse=" "))
+    printf("state %s",paste(state,collapse=" "))
     state
     
 }
@@ -155,24 +171,45 @@ getReward <- function(state, action, hitObjects)
     # action 4 - speed up
     # action 5 - speed down
     # rewards <- c(lr=0, front=0, lanes=0, hit=0, speed=0, off=0)
+    
     reward <- 100
-    if(state["left"] == 2 && action == 2)
-        reward <- 0
-    if (state["right"] == 2 && action == 3)
-        reward <- 0
-    if (state["front"] && (action != 2 || action != 3 || action != 5))
-        reward <- 0
-    if (state["optimal_lane_dir"] == 1 && action != 2)
+#     if(state["left"] == 2 && action == 2)
+#         reward <- 0
+#     if (state["right"] == 2 && action == 3)
+#         reward <- 0
+#     if (state["front"] && ( action != 5 || action != 2 || action != 3))
+#         reward <- 0
+#     if(state["left"] == 2)
+#         reward <- reward*0.8
+#     if (state["right"] == 2)
+#         reward <- reward*0.8
+#     if (state["leftright"] == 2 && ( action == 2 || action == 3))
+#         reward <- 0
+#     if (state["leftright"] == 2)
+#         reward <- reward/2
+    if (state["optimal_lane_dir"] == 2)
+        reward <- reward + 1000
+    else if (state["optimal_lane_dir"] == 1 && action != 2)
         reward <- reward/10
-    if (state["optimal_lane_dir"] == 3 && action != 3)
+    else if (state["optimal_lane_dir"] == 2 && action != 3)
         reward <- reward/10
-    if (state["maxspeed"] == 1 && action != 4)
-        reward <- reward/5
+#     if (state["maxspeed"] == 2)
+#         reward <- reward*5
+#     if (state["maxspeed"] == 1 && action != 4)
+#         reward <- reward/2
+
+    if(length(hitObjects) > 0){
+        if(length(hitObjects) > 2)
+            print("woooooooooooooooooooooooooooooooooooooooooooooooooo")
+        print(hitObjects)
+        print("fooooooooooooooooooooooooooo")
+        if(hitObjects == "fuel")
+            reward <- 10000000
+        else
+            reward <- 0
+    }        
     
-        
     
-    
-#         rewards["off"] <- -0.5
 #     
 # #     print(state)
 # #     print(rewards)
@@ -181,28 +218,10 @@ getReward <- function(state, action, hitObjects)
 #         print(rewards)
 #         print(state)
 #     }
-    reward <- 1
+#     if (state["maxspeed"] == 1)
+#         print(state)
+#         browser()
+#         reward <- 0
     reward
 }
 
-# devices
-while (dev.cur() < 3){
-    dev.new()
-}
-
-initConsts(numlanes=3, numcars=5)
-STARTFUEL = 5000
-# MINCARSPEED = 5
-printState <<- F
-for (i in 100){
-    # qmat <- qlearning(c(rep(NUMLANES+2, NUMLANES), 2, 2, 2, NUMLANES, 5, 2), maxtrials = i)
-    # c(2,2,2,3,2)
-    # is something crashable to the left, 1=no, 2=yes
-    # is something crashable to the right, 1=no, 2=yes
-    # is something crashable in front, 1=no, 2=yes
-    # where is the optimal lane - 1=to the left, 2=you're on it, 3=to the right
-    # is my speed max possible for situation - 1=no, 2=yes
-    qmat <- qlearning(c(2,2,2,3,2), maxtrials = i)
-    printState <<- T
-    simulation(qmat)
-}
