@@ -18,8 +18,8 @@ printState <<- F
 count <<- 0
 dontskip <<- F
 start_time <- Sys.time()
-for (i in 44){
-    # c(4)
+for (i in 11){
+    # c(5)
     # 1 - optimal lane is to the left, to the left
     # 2 - you're on it, keep going
     # 3 - optimal lane is to the right, to the right
@@ -33,3 +33,26 @@ for (i in 44){
 end_time <- Sys.time()
 run_time <- end_time - start_time
 print(run_time)
+
+count = 0
+trials <- 500
+loops <- 10
+for (i in 1:loops){
+    qmat500 <- qlearning(c(5), maxtrials = trials)
+    if (sum(apply(qmat500,1,which.max) - apply(a,1,which.max)) == 0)
+        count <- count + 1
+}
+count <- count / loops
+count
+
+
+count = 0
+trials <- 100
+loops <- 50
+for (i in 1:loops){
+    qmat100 <- qlearning(c(5), maxtrials = trials)
+    if (sum(apply(qmat100,1,which.max) - apply(a,1,which.max)) == 0)
+        count <- count + 1
+}
+count <- count / loops
+count
