@@ -11,19 +11,17 @@ lanePos <- function(so)
     ls     <- so[, "xtopleft"] - origin
     rs     <- so[, "xbottomright"] - origin
 
-    lcoord <- ls %/% (LANEWIDTH + 1)
-    rcoord <- rs %/% (LANEWIDTH + 1)
+    lcoord <- ls %/% (LANEWIDTH + STRIPWIDTH)
+    rcoord <- rs %/% (LANEWIDTH + STRIPWIDTH)
 
     cbind(so, data.frame(lcoord=lcoord + 1, rcoord=rcoord + 1))
 }
 
-# Check left right and front sides of myCar for other cars and sides.
-overlapping <- function(so, speed)
+# Check the front of the car.
+getFront <- function(so, speed)
 {
-    front <- 1
     sel   <- which( so$type == "car" )
-                  #| so$type == "leftside"
-                  #| so$type == "rightside")
+    front <- rep(1, length(sel))
 
     for (i in sel)
     {
@@ -36,7 +34,7 @@ overlapping <- function(so, speed)
                           so[i, "ytopleft"],
                           so[i, "xbottomright"],
                           so[i, "ybottomright"]))
-            front <- 2
+            front[i] <- 2
 
         # Brake here
         if (isOverlapped( so[1, "xtopleft"],
@@ -47,20 +45,14 @@ overlapping <- function(so, speed)
                           so[i, "ytopleft"],
                           so[i, "xbottomright"],
                           so[i, "ybottomright"]))
-            front <- 3
+            front[i] <- 3
     }
-    front
-}
+    front <- front[!is.na(front)]
 
-# Pick the max index of v. Prefer center if tied.
-which.max3 <- function(v, mycarpos)
-{
-  maxs <- which(v == max(v))
-  if (length(maxs) > 1) {
-    maxs[2]
-  } else {
-    maxs
-  }
+    if (length(front) > 0)
+      max(front)
+    else
+      1
 }
 
 getStateDesc <- function(so)
@@ -75,12 +67,6 @@ getStateDesc <- function(so)
 
     top <- LANELENGTH
 
-    # Add y coordinates to sides, for collision detection.
-    so[so$type=="leftside", "ytopleft"]      <- so[1, "ytopleft"]
-    so[so$type=="rightside", "ytopleft"]     <- so[1, "ytopleft"]
-    so[so$type=="leftside", "ybottomright"]  <- so[1, "ybottomright"]
-    so[so$type=="rightside", "ybottomright"] <- so[1, "ybottomright"]
-
     # Add lane positions to all objects
     so <- lanePos(so)
 
@@ -92,6 +78,7 @@ getStateDesc <- function(so)
     cars <- rbind(cars, data.frame(ybottomright = rep(top, NUMLANES),
                                    lcoord       = 1:NUMLANES))
 
+    # Take the nearest fuel for each lane.
     fuels <- so[so$type=="fuel", c("ybottomright", "lcoord")]
     fuels <- rbind(fuels, data.frame(ybottomright = rep(top, NUMLANES),
                                      lcoord       = 1:NUMLANES))
@@ -100,7 +87,7 @@ getStateDesc <- function(so)
     f.lanes <- aggregate(ybottomright ~ lcoord, fuels, min)$ybottomright
     f.lanes <- f.lanes + 2 * CARLENGTH
 
-    # Lanes with fuel are worth more.
+    # Lanes with fuel two CARLENGTHs from the next car are worth more.
     lanes <- c.lanes
     lanes[c.lanes > f.lanes] <- 2 * top - order(f.lanes[c.lanes > f.lanes])
 
@@ -109,23 +96,23 @@ getStateDesc <- function(so)
     lanes   <- lanes + weight
     lane.dists <- c(-Inf, lanes, -Inf)
 
+    # My car data
     mycar   <- so[1, ]
     mycar.l <- mycar$lcoord + 1
     mycar.r <- mycar$rcoord + 1
 
-    #state["speed"] <- (mycar$speed + 1) %/% 2
-
-    # Check overlapping sides.
-    state["front"] <- overlapping(so, mycar$speed)
+    # Check front
 
     # Find optimal direction.
     best.direction <- if (mycar.l == mycar.r) {
+        # Car is on a single lane
         which.max(lane.dists[(mycar.l-1):(mycar.l+1)])
     } else {
-        # Ignore front!
-        state["front"] <- 1
+        # Car is on two lanes
         (which.max(lane.dists[c(mycar.l, mycar.r)]) - 1) * 2 + 1
     }
+
+    state["front"] <- getFront(so, mycar$speed)
     state["best"]  <- best.direction
 
     state
@@ -136,8 +123,6 @@ WEIGHTS <- c(#sides = 0,
              steer = 2,
              speed = 3,
              fuel  = 1)
-
-#TODO: v uno front dej collision imminent in safe to steer away
 
 getReward <- function(state, action, hitObjects)
 {
@@ -153,52 +138,55 @@ getReward <- function(state, action, hitObjects)
                  speed = 0,
                  fuel  = 0)
 
-    # Don't steer into stuff.
-#   if (state["left"] == 2  && action == 2 ||
-#       state["right"] == 2 && action == 3){
-#       rewards["sides"] <- -1
-#   }
+    front <- state["front"]
+    best  <- state["best"]
 
     # Brake if you're about to get hit.
       # Collision imminent
-    if (state["front"] == 3 && action != 5) {
+    rewards["front"] <- 1
+    if (front == 3 && action != 5) {
         rewards["front"] <- -1
     }
       # Can steer away
-    if (state["front"] == 2 && state["best"] == 1 && action != 2) {
-        rewards["front"] <- 1
+    if (front == 2 && best == 1 && action != 2) {
+        rewards["front"] <- 0
     }
-    if (state["front"] == 2 && state["best"] == 3 && action != 3) {
-        rewards["front"] <- 1
+    if (front == 2 && best == 3 && action != 3) {
+        rewards["front"] <- 0
     }
-    if (state["front"] == 2 && state["best"] == 2 && action != 5) {
+    if (front == 2 && best == 2 && action != 5) {
+        rewards["front"] <- 0
+    }
+    if (front == 2 && action == 4) {
         rewards["front"] <- -1
     }
 
     # Steer towards the better lane.
     # Left:
-    if (state["best"] == 1 && action == 2) {
+    if (best == 1 && action == 2) {
       rewards["steer"] <- 1
     }
-    if (state["best"] == 1 && action == 3) {
+    if (best == 1 && action == 3) {
       rewards["steer"] <- -1
     }
     # Right:
-    if (state["best"] == 3 && action == 3) {
+    if (best == 3 && action == 3) {
       rewards["steer"] <- 1
     }
-    if (state["best"] == 3 && action == 2) {
+    if (best == 3 && action == 2) {
       rewards["steer"] <- -1
     }
+    # Forward:
+    if (best == 2 && (action == 2 || action == 3)) {
+      rewards["steer"] <- -1
+    }
+
     # Gotta go fast.
-    if (state["best"] == 2 && action == 4 && state["front"] == 1) {
+    if (best == 2 && front == 1 && action == 4) {
       rewards["speed"] <- 1
     }
-    if (state["best"] == 2 && action == 5 && state["front"] == 1) {
+    if (best == 2 && front == 1 && (action == 5 || action == 1)) {
       rewards["speed"] <- -1
-    }
-    if (state["best"] == 2 && (action == 2 || action == 3)) {
-      rewards["steer"] <- -1
     }
 
     rewards["front"] <- (1 + rewards["front"]) / 2
@@ -237,7 +225,7 @@ while (dev.cur() < 3){
 initConsts(numlanes=3, numcars=5)
 # STARTFUEL = 2000
 # MINCARSPEED = 5
-for (i in 10){
+for (i in 100){
     qmat <- qlearning(c(3, 3), maxtrials = i)
     simulation(qmat)
 }
