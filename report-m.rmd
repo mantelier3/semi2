@@ -30,66 +30,71 @@ Funkcija getReward vrne uteženo vsoto štirih nagrad:
 
 1. Nagrada `front`: Ta nagrada je večja, če se avto izmika drugim, ali pa
    zavira, ko obstaja nevarnost trka.
-   ```{r, eval=F}
-    # Brake if you're about to get hit.
-      # Collision imminent
-    rewards["front"] <- 1
-    if (front == 3 && action != 5) {
-        rewards["front"] <- -1
-    }
-      # Can steer away
-    if (front == 2 && best == 1 && action != 2) {
-        rewards["front"] <- 0
-    }
-    if (front == 2 && best == 3 && action != 3) {
-        rewards["front"] <- 0
-    }
-    if (front == 2 && best == 2 && action != 5) {
-        rewards["front"] <- 0
-    }
-    if (front == 2 && action == 4) {
-        rewards["front"] <- -1
-    }
-   ```
+
+```{r, eval=F}
+# Brake if you're about to get hit.
+  # Collision imminent
+rewards["front"] <- 1
+if (front == 3 && action != 5) {
+    rewards["front"] <- -1
+}
+  # Can steer away
+if (front == 2 && best == 1 && action != 2) {
+    rewards["front"] <- 0
+}
+if (front == 2 && best == 3 && action != 3) {
+    rewards["front"] <- 0
+}
+if (front == 2 && best == 2 && action != 5) {
+    rewards["front"] <- 0
+}
+if (front == 2 && action == 4) {
+    rewards["front"] <- -1
+}
+```
+
 2. Nagrada `steer`: Ta nagrada je večja, če avto vozi po najbolj ugodnem pasu.
-   ```{r}
-    rewards["steer"] <- 0
-    # Steer towards the better lane.
-    # Left:
-    if (best == 1 && action == 2) {
-      rewards["steer"] <- 1
-    }
-    if (best == 1 && action == 3) {
-      rewards["steer"] <- -1
-    }
-    # Right:
-    if (best == 3 && action == 3) {
-      rewards["steer"] <- 1
-    }
-    if (best == 3 && action == 2) {
-      rewards["steer"] <- -1
-    }
-    # Forward:
-    if (best == 2 && (action == 2 || action == 3)) {
-      rewards["steer"] <- -1
-    }
-   ```
+
+```{r, eval=F}
+rewards["steer"] <- 0
+# Steer towards the better lane.
+# Left:
+if (best == 1 && action == 2) {
+  rewards["steer"] <- 1
+}
+if (best == 1 && action == 3) {
+  rewards["steer"] <- -1
+}
+# Right:
+if (best == 3 && action == 3) {
+  rewards["steer"] <- 1
+}
+if (best == 3 && action == 2) {
+  rewards["steer"] <- -1
+}
+# Forward:
+if (best == 2 && (action == 2 || action == 3)) {
+  rewards["steer"] <- -1
+}
+```
+
 3. Nagrada `speed`: Ta nagrada je večja, če avto pospešuje, ko ima pred sabo
    prosto pot.
-   ```{r}
-    rewards["speed"] <- 0
-    # Gotta go fast.
-    if (best == 2 && front == 1 && action == 4) {
-      rewards["speed"] <- 1
-    }
-    if (best == 2 && front == 1 && (action == 5 || action == 1)) {
-      rewards["speed"] <- -1
-    }
-   ```
+
+```{r, eval=F}
+rewards["speed"] <- 0
+# Gotta go fast.
+if (best == 2 && front == 1 && action == 4) {
+  rewards["speed"] <- 1
+}
+if (best == 2 && front == 1 && (action == 5 || action == 1)) {
+  rewards["speed"] <- -1
+}
+```
 
 Vse ti trije deli nagrade so na koncu uteženi z naslednjimi utežmi:
 ```{r, eval=F}
-WEIGHTS <- c(front = 3,
+WEIGHTS <- c(front = 2,
              steer = 2,
              speed = 3)
 ```
