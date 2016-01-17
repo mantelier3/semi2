@@ -1,5 +1,5 @@
 rm(list=ls())
-source("simulation.R")
+source("simulation2.R")
 
 # Treat warnings as errors.
 options(warn=2)
@@ -229,10 +229,10 @@ while (dev.cur() < 3){
 }
 
 #initConsts(numlanes=3, numcars=5)
-initConsts(numlanes=5, numcars=9)
+initConsts(numlanes=3, numcars=9)
 # STARTFUEL = 2000
 # MINCARSPEED = 5
-for (i in 10){
-    qmat <- qlearning(c(3, 3), maxtrials = i, gamma=0.7)
+for (i in 100){
+    qmat <- qlearning(c(3, 3), maxtrials = i, gamma=0.5)
     simulation(qmat)
 }
