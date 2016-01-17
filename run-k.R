@@ -34,25 +34,28 @@ end_time <- Sys.time()
 run_time <- end_time - start_time
 print(run_time)
 
-count = 0
+count500 = 0
 trials <- 500
-loops <- 10
+loops <- 5
 for (i in 1:loops){
     qmat500 <- qlearning(c(5), maxtrials = trials)
     if (sum(apply(qmat500,1,which.max) - apply(a,1,which.max)) == 0)
-        count <- count + 1
+        count500 <- count500 + 1
 }
-count <- count / loops
-count
+count500 <- count500 / loops
+count500
 
 
 count = 0
-trials <- 100
-loops <- 50
+trials <- 10
+loops <- 10
+hists <- array(0,c(loops,5))
 for (i in 1:loops){
-    qmat100 <- qlearning(c(5), maxtrials = trials)
-    if (sum(apply(qmat100,1,which.max) - apply(a,1,which.max)) == 0)
+    qmat <- qlearning(c(5), maxtrials = trials, gamma=0.2)
+    hists[i,] <- whichmax(qmat)
+    if (sum(apply(qmat,1,which.max) - apply(a,1,which.max)) == 0)
         count <- count + 1
 }
 count <- count / loops
 count
+

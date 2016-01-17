@@ -1,5 +1,10 @@
 source("simulation.R")
 
+
+whichmax <- function(a){
+    apply(a,1,which.max)
+}
+
 # return distance of object in collision course
 yDistances <- function(so) {
     list( cars = so$ybottomright[which(so$type == "car")]
@@ -255,11 +260,11 @@ getReward <- function(state, action, hitObjects)
     # action 5 - speed down
     # rewards <- c(lr=0, front=0, lanes=0, hit=0, speed=0, off=0)
     
-    # reward <- 100
-
-    if (state["optimal_lane_dir"] == 2 && action == 4)
+    
+    
+    if      (state["optimal_lane_dir"] == 1 && action == 2)
         reward <- 10
-    else if (state["optimal_lane_dir"] == 1 && action == 2)
+    else if (state["optimal_lane_dir"] == 2 && action == 4)
         reward <- 9
     else if (state["optimal_lane_dir"] == 3 && action == 3)
         reward <- 9
@@ -269,14 +274,15 @@ getReward <- function(state, action, hitObjects)
         reward <- 8
     else
         reward <- 0
+    
 
 #     if(length(hitObjects) > 0){
-#         if(length(hitObjects) > 2)
-#             print("woooooooooooooooooooooooooooooooooooooooooooooooooo")
-#         print(hitObjects)
-#         print("fooooooooooooooooooooooooooo")
-#         if(hitObjects == "fuel")
-#             reward <- 10000000
+#         if(length(hitObjects) > 1) {
+#             print(hitObjects)
+#             reward <- 0
+#         }
+#         else if(hitObjects == "fuel")
+#             reward <- 1000
 #         else
 #             reward <- 0
 #     }        
