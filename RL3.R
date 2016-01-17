@@ -122,7 +122,13 @@ WEIGHTS <- c(#sides = 0,
              front = 1,
              steer = 2,
              speed = 3,
-             fuel  = 1)
+             fuel  = 0)
+
+WEIGHTS <- c(#sides = 0,
+             front = 2,
+             steer = 2,
+             speed = 3,
+             fuel  = 0)
 
 getReward <- function(state, action, hitObjects)
 {
@@ -212,7 +218,8 @@ getReward <- function(state, action, hitObjects)
         rewards["fuel"] <- 1
     }
 
-    reward * sum(rewards * WEIGHTS)
+    reward <- reward * sum(rewards * WEIGHTS) / sum(WEIGHTS)
+    reward
 }
 
 
@@ -222,10 +229,10 @@ while (dev.cur() < 3){
 }
 
 #initConsts(numlanes=3, numcars=5)
-initConsts(numlanes=3, numcars=5)
+initConsts(numlanes=5, numcars=9)
 # STARTFUEL = 2000
 # MINCARSPEED = 5
-for (i in 100){
-    qmat <- qlearning(c(3, 3), maxtrials = i)
+for (i in 10){
+    qmat <- qlearning(c(3, 3), maxtrials = i, gamma=0.7)
     simulation(qmat)
 }
