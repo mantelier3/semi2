@@ -1,0 +1,125 @@
+## Opis algoritma
+
+### getStateDesc
+
+Pri temu algoritmu getStateDesc vrne stanje, ki je v osnovi sestavljeno iz dveh
+elementov:  
+
+1. V kateri katero smer je najbolj ugodno zaviti (1:3)
+2. Ali je pred našim avtom kak drug avto in kako daleč je (1 - cesta je prosta,
+   2 - nekdo je na poti, a se še da zaviti stran, 3 - potrebno je zavirati)  
+
+Ugodnost smeri se izračuna tako, da se najprej za vse objekte na cesti določi na
+katerem pasu so. Po tem se pogleda kateri od našemu avtu sosednjih pasov je
+najbolj prost. Če je na katerem od teh pasov gorivo, in se to nahaja za vsaj
+dve dolžini avta pred kakšnim drugim avtom, se to smer označi kot optimalno. Če
+goriva ni, je optimalna smer tista, ki je najbolj prosta.  
+Smeri se označujejo tako: 1 pomeni zavij levo, 2 pomeni vozi naravnost in 3
+pomeni zavij desno.  
+Razdaljo pred avtom ki se upošteva v točki 2 se računa tako:
+Če je drug avto dlje kot dve širini pasov krat naša hitrost, je vrednost 1.  To
+pomeni, da je zrak čist.
+Če je drug avto bljižje kot dve širini pasov krat hitors, da dlje kot
+`sum(1:speed) * 2`, je vrednost 2. To pomeni, da ima naš avto še dovolj časa,
+da zavije na varno.  
+Če je razdalja do naslednjega avta še manjša, se vrednost nastavi na 3. To
+pomeni, da je razdalja kritična in je potrebno zavirati.
+
+
+Funkcija getReward vrne uteženo vsoto štirih nagrad:  
+
+1. Nagrada `front`: Ta nagrada je večja, če se avto izmika drugim, ali pa
+   zavira, ko obstaja nevarnost trka.
+
+```{r, eval=F}
+# Brake if you're about to get hit.
+  # Collision imminent
+rewards["front"] <- 1
+if (front == 3 && action != 5) {
+    rewards["front"] <- -1
+}
+  # Can steer away
+if (front == 2 && best == 1 && action != 2) {
+    rewards["front"] <- 0
+}
+if (front == 2 && best == 3 && action != 3) {
+    rewards["front"] <- 0
+}
+if (front == 2 && best == 2 && action != 5) {
+    rewards["front"] <- 0
+}
+if (front == 2 && action == 4) {
+    rewards["front"] <- -1
+}
+```
+
+2. Nagrada `steer`: Ta nagrada je večja, če avto vozi po najbolj ugodnem pasu.
+
+```{r, eval=F}
+rewards["steer"] <- 0
+# Steer towards the better lane.
+# Left:
+if (best == 1 && action == 2) {
+  rewards["steer"] <- 1
+}
+if (best == 1 && action == 3) {
+  rewards["steer"] <- -1
+}
+# Right:
+if (best == 3 && action == 3) {
+  rewards["steer"] <- 1
+}
+if (best == 3 && action == 2) {
+  rewards["steer"] <- -1
+}
+# Forward:
+if (best == 2 && (action == 2 || action == 3)) {
+  rewards["steer"] <- -1
+}
+```
+
+3. Nagrada `speed`: Ta nagrada je večja, če avto pospešuje, ko ima pred sabo
+   prosto pot.
+
+```{r, eval=F}
+rewards["speed"] <- 0
+# Gotta go fast.
+if (best == 2 && front == 1 && action == 4) {
+  rewards["speed"] <- 1
+}
+if (best == 2 && front == 1 && (action == 5 || action == 1)) {
+  rewards["speed"] <- -1
+}
+```
+
+Vse ti trije deli nagrade so na koncu uteženi z naslednjimi utežmi:
+```{r, eval=F}
+WEIGHTS <- c(front = 2,
+             steer = 2,
+             speed = 3)
+```
+
+### Prednosti in slabosti:
+
+Ena od prednosti funkcij je to, da je nastala matrika Q relativno majhna
+$(3×3×5)$, kar poveča robustnost učenja.
+Avto se vozi hitro, pobira gorivo, če je na poti in drži varnostno razdaljo,
+zato se uspešno izogiba trkom.  
+Njegova glavna pomankljivost je to, da je ozkogled, saj gleda le na sosednje
+pasove. To je sploh občutno pri širših cestiščih, kjer pobere bistveno manj
+paketov goriva, ali pa se zatakne v zastoj, katermu bi se lahko izognil.  
+Včasih, sploh pri nižjih količinah poskusov, se zgodi, da učenje ni najbolj
+uspešno. Tipični simptomi neuspešnega učenja so:
+
+* Zelo počasna vožnja
+* Izleti iz cestišča
+
+### Rezultati
+
+Avto pri `nlanes=3` in `ncars=5` v povprečju prevozi pribložno 11000-12000 enot
+razdalje, pri `nlanes=3` in `ncars=7`, pa med 9000 in 11000.
+Pri večpasovnih cestah so rezultati podobni.
+
+Učenje je najbolj uspešno pri nižjih nastavitvah gamme, verjetno za to, ker je
+nastavljeno tako, da so nagrade trenutne.
+
