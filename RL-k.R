@@ -263,17 +263,17 @@ getReward <- function(state, action, hitObjects)
     
     
     if      (state["optimal_lane_dir"] == 1 && action == 2)
-        reward <- 10
+        reward <- 1
     else if (state["optimal_lane_dir"] == 2 && action == 4)
-        reward <- 9
+        reward <- 1
     else if (state["optimal_lane_dir"] == 3 && action == 3)
-        reward <- 9
+        reward <- 1
     else if (state["optimal_lane_dir"] == 4 && action == 5)
-        reward <- 8
+        reward <- 1
     else if (state["optimal_lane_dir"] == 5 && action == 5)
-        reward <- 8
+        reward <- 1
     else
-        reward <- 0
+        reward <- -1
     
 
 #     if(length(hitObjects) > 0){
